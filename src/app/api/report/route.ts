@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const rows = b.movements
     .map(
       (m) =>
-        `<tr><td style="padding:6px 0;color:#8796ab">${esc(m.label)}</td><td style="padding:6px 0;text-align:right;font-family:monospace">${
+        `<tr><td style="padding:6px 0;color:#a29dc6">${esc(m.label)}</td><td style="padding:6px 0;text-align:right;font-family:monospace">${
           m.skipped ? "skipped" : `${Math.round(m.pct ?? 0)}%`
         }</td></tr>`,
     )
@@ -44,16 +44,16 @@ export async function POST(req: Request) {
         `${b.clientName}'s movement scan results`,
         emailShell(`
         <h1 style="margin:0 0 8px;font-size:22px">Hi ${esc(b.name)},</h1>
-        <p style="color:#8796ab;margin:0 0 20px">Here are ${esc(b.clientName)}'s movement efficiency results from today.</p>
+        <p style="color:#a29dc6;margin:0 0 20px">Here are ${esc(b.clientName)}'s movement efficiency results from today.</p>
         <div style="text-align:center;margin:24px 0">
-          <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8796ab">Total score</div>
-          <div style="font-size:48px;font-weight:700;font-family:monospace;color:#2ee6d6">${Math.round(b.total)}%</div>
+          <div style="font-size:14px;color:#a29dc6">Movement efficiency</div>
+          <div style="font-size:48px;font-weight:700;font-family:monospace;color:#8fd5ff">${Math.round(b.total)}%</div>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
         <div style="text-align:center;margin:28px 0 8px">
-          <a href="${esc(b.link)}" style="background:#2ee6d6;color:#032925;padding:14px 24px;border-radius:10px;text-decoration:none;font-weight:700">See the full body map</a>
+          <a href="${esc(b.link)}" style="background:#f4f2ff;color:#13102a;padding:14px 24px;border-radius:999px;text-decoration:none;font-weight:700">See the full body map</a>
         </div>
-        <p style="color:#8796ab;font-size:13px;margin-top:24px">Next retest: <b style="color:#e6edf6">${due}</b>. We'll send a reminder when it's close.</p>`),
+        <p style="color:#a29dc6;font-size:13px;margin-top:24px">Next retest: <b style="color:#eeecf8">${due}</b>. We'll send a reminder when it's close.</p>`),
       );
       sent.push(`email to ${b.to}`);
     }

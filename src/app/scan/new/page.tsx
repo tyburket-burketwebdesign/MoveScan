@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
-import { scoreColor } from "@/components/viz";
+import { heat, scoreColor, ThermalBody } from "@/components/viz";
 import { DEFAULT_BATTERY } from "@/lib/battery";
 import { scoreScan, slotId, type Side } from "@/lib/scoring";
 import { store } from "@/lib/store";
@@ -27,6 +28,7 @@ function NewScan() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     store.listClients().then(setClients);
@@ -42,6 +44,10 @@ function NewScan() {
       }
     });
   }, [clientId]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [step]);
 
   const score = useMemo(() => scoreScan({ fails: [...fails], skipped: [...skipped] }, battery), [fails, skipped, battery]);
   const last = battery.length + 1;
@@ -62,11 +68,11 @@ function NewScan() {
     });
 
   const intakeError = !form.first_name.trim()
-    ? "First name is required."
-    : !form.consent
-      ? "Consent is required before saving a scan."
-      : minor && !form.guardian_email && !form.guardian_phone
-        ? "Client is under 18: add a parent or guardian email or phone."
+    ? "Add the client's first name."
+    : minor && !form.guardian_email && !form.guardian_phone
+      ? "This client is under 18. Add a parent or guardian email or phone."
+      : !form.consent
+        ? "Check the consent box to continue."
         : null;
 
   async function submit() {
@@ -86,105 +92,119 @@ function NewScan() {
       });
       router.push(`/scans/${scan.id}?new=1`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save the scan.");
+      setError(e instanceof Error ? `The scan didn't save: ${e.message}` : "The scan didn't save. Check the connection and try again.");
       setSaving(false);
     }
   }
 
   const ft = form.height_in ? Math.floor(form.height_in / 12) : "";
   const inch = form.height_in ? Math.round(form.height_in % 12) : "";
+  const steps = ["Client", ...battery.map((m) => m.label), "Review"];
+  const movementScore = movement ? score.movements[step - 1] : null;
 
   return (
-    <div className="space-y-5">
+    <div className="pb-28">
       {/* progress */}
-      <div className="no-print flex items-center gap-1.5 overflow-x-auto pb-1">
-        {["Client", ...battery.map((m) => m.label), "Review"].map((label, i) => (
-          <button
-            key={label}
-            disabled={i > 0 && !!intakeError}
-            onClick={() => setStep(i)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${
-              i === step ? "border-accent bg-accent/15 text-accent" : i < step ? "border-line text-ink" : "border-line text-faint"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        <div className="flex-1" />
-        <span className="shrink-0 font-mono text-sm" style={{ color: scoreColor(score.total.pct) }}>
-          {Math.round(score.total.pct ?? 0)}%
-        </span>
+      <div className="no-print mb-8">
+        <div className="mb-3 flex items-center justify-between text-sm">
+          <Link href="/" className="text-dim hover:text-ink">
+            Cancel
+          </Link>
+          <span className="text-dim">
+            {step === 0 ? "Client details" : step === last ? "Review" : `Test ${step} of ${battery.length}`}
+          </span>
+        </div>
+        <div className="flex gap-1.5">
+          {steps.map((label, i) => (
+            <button
+              key={label}
+              aria-label={label}
+              disabled={i > 0 && !!intakeError}
+              onClick={() => setStep(i)}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${i === step ? "bg-paper" : i < step ? "bg-ice/60" : "bg-line"}`}
+            />
+          ))}
+        </div>
       </div>
 
       {step === 0 && (
-        <div className="space-y-5">
-          <div className="panel p-5">
-            <p className="label mb-3">Who are we scanning?</p>
-            <select
-              className="field"
-              value={clientId ?? ""}
-              onChange={(e) => setClientId(e.target.value || null)}
-            >
-              <option value="">+ New client</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Retest: {fullName(c)}
-                </option>
-              ))}
-            </select>
+        <div className="mx-auto max-w-3xl space-y-8">
+          <div>
+            <h1 className="display text-4xl sm:text-5xl">{clientId ? `Retest ${form.first_name}` : "Who are we scanning?"}</h1>
+            <p className="mt-3 text-dim">{clientId ? "Check their details are still right, then start." : "Pick someone to retest, or add a new client."}</p>
           </div>
 
-          <div className="panel grid gap-4 p-5 sm:grid-cols-2">
-            <p className="label sm:col-span-2">Client info</p>
-            <F label="First name *"><input className="field" value={form.first_name} onChange={(e) => set("first_name", e.target.value)} /></F>
-            <F label="Last name"><input className="field" value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></F>
-            <F label="Email"><input className="field" type="email" inputMode="email" value={form.email ?? ""} onChange={(e) => set("email", str(e.target.value))} /></F>
-            <F label="Phone"><input className="field" type="tel" inputMode="tel" value={form.phone ?? ""} onChange={(e) => set("phone", str(e.target.value))} /></F>
-            <F label={`Date of birth${age !== null ? ` (${age} yrs)` : ""}`}><input className="field" type="date" value={form.dob ?? ""} onChange={(e) => set("dob", str(e.target.value))} /></F>
-            <F label="Sport / position"><input className="field" value={form.sport ?? ""} onChange={(e) => set("sport", str(e.target.value))} /></F>
+          <select className="field !min-h-14 text-lg" value={clientId ?? ""} onChange={(e) => setClientId(e.target.value || null)} aria-label="Client">
+            <option value="">New client</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {fullName(c)}
+              </option>
+            ))}
+          </select>
+
+          <Section title="Basics">
+            <F label="First name"><input className="field" autoComplete="off" value={form.first_name} onChange={(e) => set("first_name", e.target.value)} onBlur={() => setTouched(true)} /></F>
+            <F label="Last name"><input className="field" autoComplete="off" value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></F>
+            <F label={age !== null ? `Date of birth (${age})` : "Date of birth"}><input className="field" type="date" value={form.dob ?? ""} onChange={(e) => set("dob", str(e.target.value))} /></F>
+            <F label="Sport or position"><input className="field" value={form.sport ?? ""} onChange={(e) => set("sport", str(e.target.value))} /></F>
             <F label="Height">
               <div className="flex gap-2">
-                <input className="field" inputMode="numeric" placeholder="ft" value={ft} onChange={(e) => set("height_in", e.target.value === "" && inch === "" ? null : Number(e.target.value || 0) * 12 + Number(inch || 0))} />
-                <input className="field" inputMode="numeric" placeholder="in" value={inch} onChange={(e) => set("height_in", Number(ft || 0) * 12 + Number(e.target.value || 0))} />
+                <div className="relative flex-1">
+                  <input className="field !pr-10" inputMode="numeric" value={ft} onChange={(e) => set("height_in", e.target.value === "" && inch === "" ? null : Number(e.target.value || 0) * 12 + Number(inch || 0))} aria-label="Feet" />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-faint">ft</span>
+                </div>
+                <div className="relative flex-1">
+                  <input className="field !pr-10" inputMode="numeric" value={inch} onChange={(e) => set("height_in", Number(ft || 0) * 12 + Number(e.target.value || 0))} aria-label="Inches" />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-faint">in</span>
+                </div>
               </div>
             </F>
-            <F label="Weight (lb)"><input className="field" inputMode="decimal" value={form.weight_lb ?? ""} onChange={(e) => set("weight_lb", num(e.target.value))} /></F>
-            <F label="Injury history" wide><textarea className="field" value={form.injuries ?? ""} onChange={(e) => set("injuries", str(e.target.value))} /></F>
-            <F label="Goals" wide><textarea className="field" value={form.goals ?? ""} onChange={(e) => set("goals", str(e.target.value))} /></F>
+            <F label="Weight">
+              <div className="relative">
+                <input className="field !pr-10" inputMode="decimal" value={form.weight_lb ?? ""} onChange={(e) => set("weight_lb", num(e.target.value))} />
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-faint">lb</span>
+              </div>
+            </F>
+          </Section>
 
-            {minor && (
-              <>
-                <p className="label pt-2 text-warn sm:col-span-2">Under 18: reports and reminders go to the parent or guardian</p>
-                <F label="Parent / guardian name"><input className="field" value={form.guardian_name ?? ""} onChange={(e) => set("guardian_name", str(e.target.value))} /></F>
-                <F label="Parent email"><input className="field" type="email" value={form.guardian_email ?? ""} onChange={(e) => set("guardian_email", str(e.target.value))} /></F>
-                <F label="Parent phone"><input className="field" type="tel" value={form.guardian_phone ?? ""} onChange={(e) => set("guardian_phone", str(e.target.value))} /></F>
-              </>
-            )}
+          {minor ? (
+            <Section title="Parent or guardian" note="This client is under 18, so their results and reminders go to a parent.">
+              <F label="Name" wide><input className="field" value={form.guardian_name ?? ""} onChange={(e) => set("guardian_name", str(e.target.value))} /></F>
+              <F label="Email"><input className="field" type="email" inputMode="email" value={form.guardian_email ?? ""} onChange={(e) => set("guardian_email", str(e.target.value))} /></F>
+              <F label="Phone"><input className="field" type="tel" value={form.guardian_phone ?? ""} onChange={(e) => set("guardian_phone", str(e.target.value))} /></F>
+            </Section>
+          ) : (
+            <Section title="Contact" note="Results and retest reminders go here.">
+              <F label="Email"><input className="field" type="email" inputMode="email" value={form.email ?? ""} onChange={(e) => set("email", str(e.target.value))} /></F>
+              <F label="Phone"><input className="field" type="tel" inputMode="tel" value={form.phone ?? ""} onChange={(e) => set("phone", str(e.target.value))} /></F>
+            </Section>
+          )}
 
-            <label className="flex items-start gap-3 rounded-xl border border-line p-4 sm:col-span-2">
-              <input type="checkbox" className="mt-1 h-5 w-5 accent-[var(--color-accent)]" checked={form.consent} onChange={(e) => set("consent", e.target.checked)} />
-              <span className="text-sm text-dim">
-                {minor ? "The parent or guardian agrees" : "Client agrees"} to have assessment results stored and to receive results and retest reminders by email or text.
-              </span>
-            </label>
-          </div>
+          <Section title="History">
+            <F label="Injuries" wide><textarea className="field" placeholder="Past injuries, surgeries, anything that hurts now" value={form.injuries ?? ""} onChange={(e) => set("injuries", str(e.target.value))} /></F>
+            <F label="Goals" wide><textarea className="field" placeholder="What they want out of training" value={form.goals ?? ""} onChange={(e) => set("goals", str(e.target.value))} /></F>
+          </Section>
+
+          <label className="flex cursor-pointer items-start gap-4 rounded-2xl bg-surface p-5">
+            <input type="checkbox" className="mt-0.5 h-6 w-6 shrink-0 accent-[var(--color-ice)]" checked={form.consent} onChange={(e) => set("consent", e.target.checked)} />
+            <span className="text-dim">
+              {minor ? "The parent or guardian agrees" : "The client agrees"} to have their assessment results stored, and to receive results and retest reminders by email or text.
+            </span>
+          </label>
         </div>
       )}
 
-      {movement && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="label">Test {step} of {battery.length}</p>
-              <h1 className="text-3xl font-semibold tracking-tight">{movement.label}</h1>
-              <p className="mt-1 max-w-2xl text-dim">{movement.cue}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-2xl" style={{ color: scoreColor(score.movements[step - 1].score.pct) }}>
-                {skipped.has(movement.key) ? "—" : `${Math.round(score.movements[step - 1].score.pct ?? 0)}%`}
-              </span>
+      {movement && movementScore && (
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div>
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-xl">
+                <h1 className="display text-4xl sm:text-5xl">{movement.label}</h1>
+                <p className="mt-3 text-dim">{movement.cue}</p>
+              </div>
               <button
-                className={`btn ${skipped.has(movement.key) ? "btn-primary" : "btn-ghost"} !min-h-10 text-sm`}
+                className={`btn ${skipped.has(movement.key) ? "btn-primary" : "btn-quiet"} !min-h-11`}
                 onClick={() =>
                   setSkipped((s) => {
                     const n = new Set(s);
@@ -194,111 +214,178 @@ function NewScan() {
                   })
                 }
               >
-                {skipped.has(movement.key) ? "Skipped (tap to test)" : "Skip test"}
+                {skipped.has(movement.key) ? "Test this movement" : "Skip this test"}
               </button>
             </div>
-          </div>
 
-          <div className={`panel divide-y divide-line ${skipped.has(movement.key) ? "pointer-events-none opacity-30" : ""}`}>
-            <div className="flex items-center justify-between px-4 py-2">
-              <span className="label">Compensation</span>
-              <span className="label flex w-[184px] justify-around"><span>Right</span><span>Left</span></span>
-            </div>
-            {movement.compensations.map((comp) => (
-              <div key={comp.key} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-lg">{comp.label}</span>
-                {comp.type === "side" ? (
-                  <div className="flex gap-2">
-                    {(["R", "L"] as Side[]).map((side) => (
-                      <Toggle key={side} on={fails.has(slotId(movement.key, comp.key, side))} onClick={() => toggle(slotId(movement.key, comp.key, side))} label={side} />
-                    ))}
+            {skipped.has(movement.key) ? (
+              <p className="surface p-6 text-dim">Skipped. This test won&apos;t count toward the score.</p>
+            ) : (
+              <div className="surface overflow-hidden">
+                <div className="flex items-center justify-between border-b border-line px-5 py-3 text-sm text-dim">
+                  <span>Tap what you see</span>
+                  <span className="flex w-[180px] justify-around sm:w-[196px]">
+                    <span>Right</span>
+                    <span>Left</span>
+                  </span>
+                </div>
+                {movement.compensations.map((comp) => (
+                  <div key={comp.key} className="flex items-center justify-between gap-3 border-b border-line/60 px-5 py-2.5 last:border-0">
+                    <span className="text-lg">{comp.label}</span>
+                    {comp.type === "side" ? (
+                      <div className="flex gap-2">
+                        {(["R", "L"] as Side[]).map((side) => (
+                          <Toggle key={side} on={fails.has(slotId(movement.key, comp.key, side))} onClick={() => toggle(slotId(movement.key, comp.key, side))} label={side === "R" ? "Right" : "Left"} short={side} />
+                        ))}
+                      </div>
+                    ) : (
+                      <Toggle wide on={fails.has(slotId(movement.key, comp.key, "W"))} onClick={() => toggle(slotId(movement.key, comp.key, "W"))} label="Whole body" short="Whole body" />
+                    )}
                   </div>
-                ) : (
-                  <Toggle wide on={fails.has(slotId(movement.key, comp.key, "W"))} onClick={() => toggle(slotId(movement.key, comp.key, "W"))} label="Whole body" />
-                )}
+                ))}
               </div>
-            ))}
+            )}
+
+            <textarea
+              className="field mt-4"
+              placeholder="Notes for this test (optional)"
+              value={notes[movement.key] ?? ""}
+              onChange={(e) => setNotes((n) => ({ ...n, [movement.key]: e.target.value }))}
+            />
           </div>
 
-          <textarea
-            className="field"
-            placeholder={`Notes on the ${movement.label.toLowerCase()} (optional)`}
-            value={notes[movement.key] ?? ""}
-            onChange={(e) => setNotes((n) => ({ ...n, [movement.key]: e.target.value }))}
-          />
+          {/* live readout */}
+          <aside className="surface hidden h-fit flex-col items-center gap-4 p-6 lg:sticky lg:top-10 lg:flex">
+            <div className="flex w-full items-baseline justify-between">
+              <span className="text-sm text-dim">{movement.label}</span>
+              <span className="num text-2xl" style={{ color: movementScore.skipped ? undefined : scoreColor(movementScore.score.pct) }}>
+                {movementScore.skipped ? "–" : `${Math.round(movementScore.score.pct ?? 0)}%`}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              <ThermalBody regions={score.regions} view="front" height={250} showSides={false} />
+              <ThermalBody regions={score.regions} view="back" height={250} showSides={false} />
+            </div>
+            <div className="flex w-full items-baseline justify-between border-t border-line pt-4">
+              <span className="text-sm text-dim">Total so far</span>
+              <span className="num text-2xl" style={{ color: scoreColor(score.total.pct) }}>
+                {Math.round(score.total.pct ?? 0)}%
+              </span>
+            </div>
+          </aside>
         </div>
       )}
 
       {step === last && (
-        <div className="space-y-4">
-          <h1 className="text-3xl font-semibold tracking-tight">Review</h1>
-          <div className="panel grid gap-3 p-5 sm:grid-cols-2">
+        <div className="mx-auto max-w-3xl space-y-8">
+          <div>
+            <h1 className="display text-4xl sm:text-5xl">Review {form.first_name}&apos;s scan</h1>
+            <p className="mt-3 text-dim">Tap a test to change it. Saving sets the retest for {RETEST_DAYS} days from today.</p>
+          </div>
+          <div className="surface flex flex-col items-center gap-6 p-8 sm:flex-row sm:justify-between">
             <div>
-              <p className="label">Client</p>
-              <p className="text-lg">{fullName(form) || "—"}</p>
-            </div>
-            <div className="sm:text-right">
-              <p className="label">Total score</p>
-              <p className="font-mono text-4xl" style={{ color: scoreColor(score.total.pct) }}>
-                {score.total.pct?.toFixed(2)}%
+              <p className="text-dim">Total score</p>
+              <p className="display text-7xl" style={{ color: scoreColor(score.total.pct) }}>
+                {score.total.pct?.toFixed(1)}
+                <span className="text-[0.4em] text-dim">%</span>
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 font-mono text-sm sm:col-span-2">
-              <span>Right {score.right.pct?.toFixed(1)}%</span>
-              <span>Left {score.left.pct?.toFixed(1)}%</span>
-              <span>Synergy {score.synergistic.pct?.toFixed(1)}%</span>
-            </div>
+            <dl className="grid grid-cols-3 gap-6 text-center">
+              {[["Right", score.right.pct], ["Left", score.left.pct], ["Whole body", score.synergistic.pct]].map(([l, v]) => (
+                <div key={l as string}>
+                  <dt className="text-sm text-dim">{l}</dt>
+                  <dd className="num text-2xl">{(v as number).toFixed(1)}%</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <div className="panel divide-y divide-line">
+          <div className="surface divide-y divide-line overflow-hidden">
             {score.movements.map((m, i) => (
-              <button key={m.key} onClick={() => setStep(i + 1)} className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-panel-2">
-                <span>{m.label}</span>
-                <span className="font-mono" style={{ color: m.skipped ? undefined : scoreColor(m.score.pct) }}>
-                  {m.skipped ? "skipped" : `${m.score.pct?.toFixed(1)}%`}
+              <button key={m.key} onClick={() => setStep(i + 1)} className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-raised">
+                <span className="text-lg">{m.label}</span>
+                <span className="flex items-center gap-4">
+                  {!m.skipped && (
+                    <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-line sm:block">
+                      <span className="block h-full rounded-full" style={{ width: `${m.score.pct}%`, background: scoreColor(m.score.pct) }} />
+                    </span>
+                  )}
+                  <span className="num w-16 text-right" style={{ color: m.skipped ? undefined : scoreColor(m.score.pct) }}>
+                    {m.skipped ? <span className="font-normal text-faint">Skipped</span> : `${m.score.pct?.toFixed(1)}%`}
+                  </span>
                 </span>
               </button>
             ))}
           </div>
-          {error && <p className="text-bad">{error}</p>}
+          {error && <p className="rounded-2xl bg-hot/10 p-4 text-hot">{error}</p>}
         </div>
       )}
 
-      <div className="no-print sticky bottom-0 -mx-4 flex gap-3 border-t border-line bg-bg/90 px-4 py-3 backdrop-blur" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-        <button className="btn btn-ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-          ← Back
-        </button>
-        <div className="flex-1 self-center text-sm text-bad">{step === 0 && intakeError && form.first_name ? intakeError : ""}</div>
-        {step < last ? (
-          <button className="btn btn-primary min-w-40" disabled={step === 0 && !!intakeError} onClick={() => setStep((s) => s + 1)}>
-            {step === 0 ? "Start tests →" : step === battery.length ? "Review →" : "Next test →"}
+      <div
+        className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-line/60 bg-bg/95 backdrop-blur md:left-60"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-4 py-3 sm:px-6 md:px-10">
+          <button className="btn btn-quiet" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+            Back
           </button>
-        ) : (
-          <button className="btn btn-primary min-w-40" disabled={saving || !!intakeError} onClick={submit}>
-            {saving ? "Saving…" : "Save scan"}
-          </button>
-        )}
+          <p className="flex-1 text-center text-sm text-amber">{step === 0 && touched && intakeError ? intakeError : ""}</p>
+          {movement && (
+            <span className="num mr-2 lg:hidden" style={{ color: scoreColor(score.total.pct) }}>
+              {Math.round(score.total.pct ?? 0)}%
+            </span>
+          )}
+          {step < last ? (
+            <button
+              className="btn btn-primary min-w-36"
+              onClick={() => {
+                if (step === 0 && intakeError) return setTouched(true);
+                setStep((s) => s + 1);
+              }}
+            >
+              {step === 0 ? "Start tests" : step === battery.length ? "Review" : "Next test"}
+            </button>
+          ) : (
+            <button className="btn btn-primary min-w-36" disabled={saving || !!intakeError} onClick={submit}>
+              {saving ? "Saving…" : "Save scan"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Toggle({ on, onClick, label, wide }: { on: boolean; onClick: () => void; label: string; wide?: boolean }) {
+function Toggle({ on, onClick, label, short, wide }: { on: boolean; onClick: () => void; label: string; short: string; wide?: boolean }) {
   return (
     <button
       onClick={onClick}
       aria-pressed={on}
-      className={`h-14 rounded-xl border-2 font-mono text-lg font-semibold transition active:scale-95 ${wide ? "w-[184px]" : "w-[88px]"} ${
-        on ? "border-bad bg-bad/20 text-bad shadow-[0_0_16px_rgba(244,63,94,.35)]" : "border-line bg-bg text-faint"
+      aria-label={`${label}${on ? ", found" : ""}`}
+      className={`h-14 rounded-2xl text-base font-bold transition-[background-color,color,transform] duration-100 active:scale-95 ${wide ? "w-[180px] sm:w-[196px]" : "w-[86px] sm:w-[94px]"} ${
+        on ? "text-bg" : "bg-raised text-faint hover:text-dim"
       }`}
+      style={on ? { background: heat(0.72) } : undefined}
     >
-      {on ? `✕ ${label}` : label}
+      {short}
     </button>
+  );
+}
+
+function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <h2 className="wide text-xl font-bold">{title}</h2>
+        {note && <p className="mt-1 text-sm text-dim">{note}</p>}
+      </div>
+      {children}
+    </section>
   );
 }
 
 function F({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <label className={`flex flex-col gap-1.5 ${wide ? "sm:col-span-2" : ""}`}>
+    <label className={`flex flex-col gap-2 ${wide ? "sm:col-span-2" : ""}`}>
       <span className="text-sm text-dim">{label}</span>
       {children}
     </label>
@@ -308,7 +395,7 @@ function F({ label, children, wide }: { label: string; children: React.ReactNode
 export default function Page() {
   return (
     <AppShell>
-      <Suspense fallback={<p className="text-dim">Loading…</p>}>
+      <Suspense fallback={null}>
         <NewScan />
       </Suspense>
     </AppShell>

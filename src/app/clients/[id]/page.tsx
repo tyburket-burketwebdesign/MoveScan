@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import AppShell from "@/components/AppShell";
-import { HistoryChart, scoreColor } from "@/components/viz";
+import AppShell, { Loading } from "@/components/AppShell";
+import { deltaColor, HistoryChart, scoreColor, ThermalBody } from "@/components/viz";
+import { scoreScan } from "@/lib/scoring";
 import { store } from "@/lib/store";
 import { ageFromDob, contactFor, fullName, isMinor, retestStatus, type Client, type Scan } from "@/lib/types";
 
@@ -18,92 +19,143 @@ function Profile() {
     store.listScans(id).then(setScans);
   }, [id]);
 
-  if (client === undefined) return <p className="text-dim">Loading…</p>;
-  if (client === null) return <p className="text-dim">Client not found.</p>;
+  if (client === undefined) return <Loading />;
+  if (client === null)
+    return (
+      <div className="surface p-8">
+        <p className="wide text-xl font-bold">This client isn&apos;t here</p>
+        <p className="mt-2 text-dim">They may have been removed, or the link is wrong.</p>
+        <Link href="/clients" className="btn btn-quiet mt-5">
+          Back to clients
+        </Link>
+      </div>
+    );
 
   const age = ageFromDob(client.dob);
   const contact = contactFor(client);
   const latest = scans[0];
   const st = latest ? retestStatus(latest.retest_due) : null;
-  const h = client.height_in ? `${Math.floor(client.height_in / 12)}'${Math.round(client.height_in % 12)}"` : null;
+  const h = client.height_in ? `${Math.floor(client.height_in / 12)}′${Math.round(client.height_in % 12)}″` : null;
+  const facts = [
+    age !== null && ["Age", `${age}`],
+    h && ["Height", h],
+    client.weight_lb && ["Weight", `${client.weight_lb} lb`],
+    client.sport && ["Sport", client.sport],
+  ].filter(Boolean) as [string, string][];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="label">Client</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{fullName(client)}</h1>
-          <p className="text-dim">{[age !== null && `${age} yrs`, h, client.weight_lb && `${client.weight_lb} lb`, client.sport].filter(Boolean).join(" · ")}</p>
+          <h1 className="display text-4xl sm:text-6xl">{fullName(client)}</h1>
+          {latest && (
+            <p className={`mt-3 text-lg ${st === "overdue" ? "text-hot" : st === "due_soon" ? "text-amber" : "text-dim"}`}>
+              {st === "overdue" ? "Retest overdue since" : "Next retest"} {new Date(latest.retest_due + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+            </p>
+          )}
         </div>
-        <Link href={`/scan/new?client=${client.id}`} className="btn btn-primary">
-          {scans.length ? "Retest" : "Run first scan"}
+        <Link href={`/scan/new?client=${client.id}`} className="btn btn-primary !min-h-14 !px-8 text-lg">
+          {scans.length ? "Start retest" : "Run first scan"}
         </Link>
-      </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <section className="panel p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="label">Total score over time</p>
-            {st && (
-              <span className={`font-mono text-xs ${st === "overdue" ? "text-bad" : st === "due_soon" ? "text-warn" : "text-dim"}`}>
-                next retest {new Date(latest.retest_due + "T00:00:00").toLocaleDateString()}
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="surface p-6 sm:p-8">
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h2 className="wide text-xl font-bold">Progress</h2>
+            {latest && (
+              <span className="num text-3xl" style={{ color: scoreColor(Number(latest.total_pct)) }}>
+                {Math.round(Number(latest.total_pct))}%
               </span>
             )}
           </div>
           <HistoryChart points={[...scans].reverse().map((s) => ({ date: s.performed_at, pct: Number(s.total_pct) }))} />
-        </section>
+        </div>
 
-        <section className="panel space-y-3 p-5 text-sm">
-          <p className="label">Contact {isMinor(client) && "(parent / guardian)"}</p>
-          <Row k="Name" v={contact.name} />
-          <Row k="Email" v={contact.email} />
-          <Row k="Phone" v={contact.phone} />
-          {client.injuries && <Row k="Injuries" v={client.injuries} />}
-          {client.goals && <Row k="Goals" v={client.goals} />}
-        </section>
-      </div>
-
-      <section className="panel p-5">
-        <p className="label mb-3">Scans</p>
-        {scans.length === 0 ? (
-          <p className="text-sm text-dim">No scans yet.</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {scans.map((s, i) => {
-              const prev = scans[i + 1];
-              const d = prev ? Number(s.total_pct) - Number(prev.total_pct) : null;
-              return (
-                <li key={s.id}>
-                  <Link href={`/scans/${s.id}`} className="flex items-center justify-between py-3 hover:text-accent">
-                    <span>
-                      {new Date(s.performed_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
-                      {i === 0 && <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-xs text-accent">latest</span>}
-                    </span>
-                    <span className="flex items-center gap-3 font-mono">
-                      {d !== null && Math.abs(d) >= 0.5 && (
-                        <span className="text-xs" style={{ color: d > 0 ? "var(--color-good)" : "var(--color-bad)" }}>
-                          {d > 0 ? "+" : "−"}
-                          {Math.abs(Math.round(d))}
-                        </span>
-                      )}
-                      <span style={{ color: scoreColor(Number(s.total_pct)) }}>{Math.round(Number(s.total_pct))}%</span>
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="surface flex flex-col items-center p-6 sm:p-8">
+          <h2 className="wide mb-4 self-start text-xl font-bold">Latest heat map</h2>
+          {latest ? (
+            <Link href={`/scans/${latest.id}`} className="flex gap-1" aria-label="Open latest scan">
+              <ThermalBody regions={scoreScan(latest).regions} view="front" height={210} showSides={false} />
+              <ThermalBody regions={scoreScan(latest).regions} view="back" height={210} showSides={false} />
+            </Link>
+          ) : (
+            <p className="text-dim">Appears after the first scan.</p>
+          )}
+        </div>
       </section>
-    </div>
-  );
-}
 
-function Row({ k, v }: { k: string; v: string | null }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-dim">{k}</span>
-      <span className="text-right">{v || "—"}</span>
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="surface p-6 sm:p-8">
+          <h2 className="wide mb-4 text-xl font-bold">Scan history</h2>
+          {scans.length === 0 ? (
+            <p className="text-dim">No scans yet.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {scans.map((s, i) => {
+                const prev = scans[i + 1];
+                const d = prev ? Number(s.total_pct) - Number(prev.total_pct) : null;
+                return (
+                  <li key={s.id}>
+                    <Link href={`/scans/${s.id}`} className="flex items-center justify-between gap-4 py-4 hover:text-ice">
+                      <span className="font-medium">
+                        {new Date(s.performed_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
+                      </span>
+                      <span className="flex items-baseline gap-4">
+                        {d !== null && Math.abs(d) >= 0.5 && (
+                          <span className="num text-sm" style={{ color: deltaColor(d) }}>
+                            {d > 0 ? "+" : "−"}
+                            {Math.abs(Math.round(d))}
+                          </span>
+                        )}
+                        <span className="num w-14 text-right text-xl" style={{ color: scoreColor(Number(s.total_pct)) }}>
+                          {Math.round(Number(s.total_pct))}%
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="surface space-y-6 p-6 sm:p-8">
+          {facts.length > 0 && (
+            <dl className="grid grid-cols-2 gap-4">
+              {facts.map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-sm text-dim">{k}</dt>
+                  <dd className="wide font-semibold">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <div className="space-y-2 border-t border-line pt-5">
+            <h3 className="font-semibold">{isMinor(client) ? "Parent or guardian" : "Contact"}</h3>
+            <p>{contact.name}</p>
+            {contact.email && <a href={`mailto:${contact.email}`} className="block text-dim hover:text-ice">{contact.email}</a>}
+            {contact.phone && <a href={`tel:${contact.phone}`} className="block text-dim hover:text-ice">{contact.phone}</a>}
+            {!contact.email && !contact.phone && <p className="text-sm text-amber">No email or phone on file, so reports can&apos;t be sent.</p>}
+          </div>
+          {(client.injuries || client.goals) && (
+            <div className="space-y-4 border-t border-line pt-5 text-sm">
+              {client.injuries && (
+                <div>
+                  <h3 className="mb-1 font-semibold">Injuries</h3>
+                  <p className="text-dim">{client.injuries}</p>
+                </div>
+              )}
+              {client.goals && (
+                <div>
+                  <h3 className="mb-1 font-semibold">Goals</h3>
+                  <p className="text-dim">{client.goals}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

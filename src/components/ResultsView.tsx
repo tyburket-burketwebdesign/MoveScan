@@ -1,9 +1,9 @@
 "use client";
 
-import type { Region } from "@/lib/battery";
+import { REGION_LABELS, type Region } from "@/lib/battery";
 import { failedCompensations, scoreScan } from "@/lib/scoring";
 import type { Scan } from "@/lib/types";
-import { BodyMap, MovementBar, ScoreRing } from "./viz";
+import { BodyMap, Gauge, heat, MovementBar, scoreColor } from "./viz";
 
 const sideLabel = { R: "Right", L: "Left", W: "Whole body" } as const;
 
@@ -12,21 +12,35 @@ export default function ResultsView({
   name,
   previous,
   actions,
+  gymName,
 }: {
   scan: Scan;
   name: string;
   previous?: Scan | null;
   actions?: React.ReactNode;
+  gymName?: string;
 }) {
   const s = scoreScan(scan);
   const p = previous ? scoreScan(previous) : null;
   const delta = (a: number | null, b: number | null | undefined) => (a === null || b == null ? null : a - b);
   const fails = failedCompensations(scan.fails);
+  const totalDelta = delta(s.total.pct, p?.total.pct);
 
   const failsByRegion: Partial<Record<Region, { label: string; side: string }[]>> = {};
-  for (const f of fails) (failsByRegion[f.region] ??= []).push({ label: `${f.movement}: ${f.compensation}`, side: sideLabel[f.side] });
+  for (const f of fails) (failsByRegion[f.region] ??= []).push({ label: `${f.compensation} (${f.movement})`, side: sideLabel[f.side] });
 
-  // Collapse a compensation that failed on both sides into one "Both sides" row.
+  // Rank body areas by how much of what was tested there failed.
+  const focus = (Object.entries(s.regions) as [Region, (typeof s.regions)[Region]][])
+    .map(([region, r]) => {
+      const possible = r.R.possible + r.L.possible;
+      const failed = possible - r.R.passed - r.L.passed;
+      const sides = [r.R.passed < r.R.possible && "right", r.L.passed < r.L.possible && "left"].filter(Boolean) as string[];
+      return { region, rate: possible ? failed / possible : 0, sides };
+    })
+    .filter((x) => x.rate > 0)
+    .sort((a, b) => b.rate - a.rate)
+    .slice(0, 3);
+
   const collapse = (list: typeof fails) => {
     const out: { compensation: string; side: string }[] = [];
     for (const f of list) {
@@ -36,88 +50,122 @@ export default function ResultsView({
     }
     return out;
   };
-  const byMovement = s.movements.map((m) => ({
-    ...m,
-    fails: collapse(fails.filter((f) => f.movement === m.label)),
-    note: scan.notes?.[m.key],
-  }));
+
+  const date = new Date(scan.performed_at).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const due = new Date(scan.retest_due + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <article className="space-y-10">
+      <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="label">Movement efficiency scan</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
-          <p className="text-sm text-dim">
-            {new Date(scan.performed_at).toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
-            {previous && <> · compared with {new Date(previous.performed_at).toLocaleDateString()}</>}
-          </p>
+          <p className="mb-3 text-dim">{gymName ? `${gymName} movement scan` : "Movement scan"}, {date}</p>
+          <h1 className="display text-5xl sm:text-6xl">{name}</h1>
         </div>
         {actions && <div className="no-print flex flex-wrap gap-2">{actions}</div>}
-      </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <section className="panel p-5">
-          <p className="label mb-4">Body map</p>
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="surface px-4 py-8 sm:px-8">
           <BodyMap regions={s.regions} failsByRegion={failsByRegion} />
-          <div className="mt-4 flex items-center justify-center gap-4 text-xs text-dim">
-            <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "rgba(46,230,214,.25)" }} /> clear</span>
-            <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-sm bg-warn" /> some</span>
-            <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-sm bg-bad" /> most</span>
-          </div>
-        </section>
-
-        <div className="space-y-6">
-          <section className="panel p-5">
-            <div className="flex flex-wrap items-center justify-around gap-4">
-              <ScoreRing pct={s.total.pct} label="Total" size={150} delta={delta(s.total.pct, p?.total.pct)} />
-              <div className="flex gap-4">
-                <ScoreRing pct={s.right.pct} label="Right" size={92} delta={delta(s.right.pct, p?.right.pct)} />
-                <ScoreRing pct={s.left.pct} label="Left" size={92} delta={delta(s.left.pct, p?.left.pct)} />
-                <ScoreRing pct={s.synergistic.pct} label="Synergy" size={92} delta={delta(s.synergistic.pct, p?.synergistic.pct)} />
-              </div>
-            </div>
-          </section>
-
-          <section className="panel space-y-4 p-5">
-            <p className="label">By movement</p>
-            {s.movements.map((m, i) => (
-              <MovementBar key={m.key} label={m.label} pct={m.score.pct} skipped={m.skipped} delta={delta(m.score.pct, p?.movements[i]?.score.pct)} />
-            ))}
-          </section>
         </div>
-      </div>
 
-      <section className="panel p-5">
-        <p className="label mb-4">What we found</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {byMovement.map((m) => (
-            <div key={m.key} className="rounded-xl border border-line bg-bg/50 p-4">
-              <div className="mb-2 flex justify-between">
-                <span className="font-semibold">{m.label}</span>
-                <span className="font-mono text-sm text-dim">{m.skipped ? "skipped" : `${Math.round(m.score.pct ?? 0)}%`}</span>
+        <div className="flex flex-col gap-6">
+          <div className="surface p-6 sm:p-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <p className="text-dim">Movement efficiency</p>
+                <p className="display mt-2 text-[5.5rem] sm:text-[6.5rem]" style={{ color: scoreColor(s.total.pct) }}>
+                  {Math.round(s.total.pct ?? 0)}
+                  <span className="text-[0.4em] text-dim">%</span>
+                </p>
+                {totalDelta !== null && Math.abs(totalDelta) >= 0.5 ? (
+                  <p className="mt-2 text-sm" style={{ color: totalDelta > 0 ? "var(--color-ice)" : "var(--color-hot)" }}>
+                    {totalDelta > 0 ? "Up" : "Down"} {Math.abs(Math.round(totalDelta))} points since {new Date(previous!.performed_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-dim">{s.total.passed} of {s.total.possible} checks passed</p>
+                )}
               </div>
-              {m.skipped ? null : m.fails.length === 0 ? (
-                <p className="text-sm text-good">Clean, no compensations.</p>
-              ) : (
-                <ul className="space-y-0.5 text-sm">
-                  {m.fails.map((f, i) => (
-                    <li key={i} className="flex justify-between">
-                      <span>{f.compensation}</span>
-                      <span className="font-mono text-xs text-dim">{f.side}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {m.note && <p className="mt-2 border-t border-line pt-2 text-xs text-dim">{m.note}</p>}
+              <div className="flex justify-between gap-2 border-t border-line pt-6 sm:justify-around">
+                <Gauge pct={s.right.pct} label="Right" size={96} delta={delta(s.right.pct, p?.right.pct)} />
+                <Gauge pct={s.left.pct} label="Left" size={96} delta={delta(s.left.pct, p?.left.pct)} />
+                <Gauge pct={s.synergistic.pct} label="Whole body" size={96} delta={delta(s.synergistic.pct, p?.synergistic.pct)} />
+              </div>
             </div>
-          ))}
+          </div>
+
+          <div className="surface flex-1 p-6 sm:p-8">
+            <h2 className="wide mb-5 text-xl font-bold">Focus areas</h2>
+            {focus.length === 0 ? (
+              <p className="text-ice">No compensations found. Clean scan.</p>
+            ) : (
+              <ol className="space-y-5">
+                {focus.map((f, i) => (
+                  <li key={f.region} className="grid grid-cols-[auto_1fr] gap-x-4">
+                    <span className="num row-span-2 grid h-10 w-10 place-items-center rounded-full text-sm text-bg" style={{ background: heat(0.4 + 0.6 * f.rate) }}>
+                      {i + 1}
+                    </span>
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="wide font-semibold">{REGION_LABELS[f.region]}</span>
+                      <span className="text-sm text-dim">{f.sides.length === 2 ? "Both sides" : f.sides[0] === "right" ? "Right side" : "Left side"}</span>
+                    </span>
+                    <span className="text-sm text-dim">
+                      {Array.from(new Set(fails.filter((x) => x.region === f.region).map((x) => x.compensation))).join(", ")}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
       </section>
 
-      <p className="text-center text-sm text-dim">
-        Next retest: <span className="font-mono text-ink">{new Date(scan.retest_due + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</span>
-      </p>
-    </div>
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+        <div className="surface space-y-5 p-6 sm:p-8">
+          <h2 className="wide text-xl font-bold">By movement</h2>
+          {s.movements.map((m, i) => (
+            <MovementBar key={m.key} label={m.label} pct={m.score.pct} skipped={m.skipped} delta={delta(m.score.pct, p?.movements[i]?.score.pct)} />
+          ))}
+        </div>
+
+        <div className="surface p-6 sm:p-8">
+          <h2 className="wide mb-5 text-xl font-bold">Every compensation found</h2>
+          <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            {s.movements.map((m) => {
+              const list = collapse(fails.filter((f) => f.movement === m.label));
+              const note = scan.notes?.[m.key];
+              return (
+                <div key={m.key} className="border-t border-line pt-4">
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <h3 className="font-semibold">{m.label}</h3>
+                    <span className="num text-sm" style={{ color: m.skipped ? undefined : scoreColor(m.score.pct) }}>
+                      {m.skipped ? <span className="font-normal text-faint">Skipped</span> : `${Math.round(m.score.pct ?? 0)}%`}
+                    </span>
+                  </div>
+                  {m.skipped ? null : list.length === 0 ? (
+                    <p className="text-sm text-ice">Clean</p>
+                  ) : (
+                    <ul className="space-y-1 text-sm">
+                      {list.map((f) => (
+                        <li key={f.compensation} className="flex justify-between gap-3">
+                          <span>{f.compensation}</span>
+                          <span className="text-dim">{f.side}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {note && <p className="mt-2 text-sm italic text-dim">{note}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <footer className="flex flex-col items-center gap-1 pb-4 text-center">
+        <p className="text-dim">Next retest</p>
+        <p className="wide text-2xl font-bold">{due}</p>
+      </footer>
+    </article>
   );
 }

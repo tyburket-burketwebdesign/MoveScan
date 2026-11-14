@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import AppShell from "@/components/AppShell";
+import AppShell, { Loading } from "@/components/AppShell";
 import { scoreColor } from "@/components/viz";
 import { store } from "@/lib/store";
 import { ageFromDob, fullName, retestStatus, type Client, type Scan } from "@/lib/types";
@@ -21,51 +21,66 @@ function Clients() {
     for (const s of scans) m[s.client_id] ??= s;
     return m;
   }, [scans]);
+  const count = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const s of scans) m[s.client_id] = (m[s.client_id] ?? 0) + 1;
+    return m;
+  }, [scans]);
 
-  const list = (clients ?? []).filter((c) => fullName(c).toLowerCase().includes(q.toLowerCase()));
+  if (clients === null) return <Loading />;
+  const list = clients.filter((c) => fullName(c).toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight">Clients</h1>
-        <span className="font-mono text-sm text-dim">{clients?.length ?? 0} total</span>
-      </div>
-      <input className="field" placeholder="Search by name…" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="panel divide-y divide-line">
-        {clients === null ? (
-          <p className="p-4 text-dim">Loading…</p>
-        ) : list.length === 0 ? (
-          <p className="p-4 text-dim">No clients found.</p>
-        ) : (
-          list.map((c) => {
+    <div className="space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <h1 className="display text-4xl sm:text-6xl">Clients</h1>
+          <p className="mt-3 text-lg text-dim">
+            {clients.length} {clients.length === 1 ? "person" : "people"} scanned
+          </p>
+        </div>
+        <Link href="/scan/new" className="btn btn-primary">
+          Add a client
+        </Link>
+      </header>
+
+      <input className="field !min-h-14 !rounded-full !px-6 text-lg" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" />
+
+      {list.length === 0 ? (
+        <p className="surface p-6 text-dim">{q ? `No one matches “${q}”.` : "No clients yet. Start a scan to add your first one."}</p>
+      ) : (
+        <ul className="surface divide-y divide-line overflow-hidden">
+          {list.map((c) => {
             const s = latest[c.id];
             const st = s ? retestStatus(s.retest_due) : null;
             const age = ageFromDob(c.dob);
+            const meta = [age !== null && `${age}`, c.sport, s && `${count[c.id]} ${count[c.id] === 1 ? "scan" : "scans"}`].filter(Boolean).join(", ");
             return (
-              <Link key={c.id} href={`/clients/${c.id}`} className="flex items-center justify-between gap-4 p-4 hover:bg-panel-2">
-                <div>
-                  <div className="font-medium">{fullName(c)}</div>
-                  <div className="text-sm text-dim">
-                    {[age !== null && `${age} yrs`, c.sport, s && `last scan ${new Date(s.performed_at).toLocaleDateString()}`].filter(Boolean).join(" · ") || "No scans yet"}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
+              <li key={c.id}>
+                <Link href={`/clients/${c.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-raised sm:px-6">
+                  <span className="wide grid h-11 w-11 shrink-0 place-items-center rounded-full bg-raised text-sm font-bold text-dim">
+                    {(c.first_name[0] ?? "") + (c.last_name.replace(/[^a-z]/gi, "")[0] ?? "")}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{fullName(c)}</span>
+                    <span className="block truncate text-sm text-dim">{meta || "No scans yet"}</span>
+                  </span>
                   {st && st !== "ok" && (
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-xs ${st === "overdue" ? "bg-bad/15 text-bad" : "bg-warn/15 text-warn"}`}>
-                      {st === "overdue" ? "retest overdue" : "retest due"}
+                    <span className={`hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline ${st === "overdue" ? "bg-hot/15 text-hot" : "bg-amber/15 text-amber"}`}>
+                      {st === "overdue" ? "Retest overdue" : "Retest due"}
                     </span>
                   )}
                   {s && (
-                    <span className="font-mono text-lg" style={{ color: scoreColor(Number(s.total_pct)) }}>
+                    <span className="num w-14 text-right text-xl" style={{ color: scoreColor(Number(s.total_pct)) }}>
                       {Math.round(Number(s.total_pct))}%
                     </span>
                   )}
-                </div>
-              </Link>
+                </Link>
+              </li>
             );
-          })
-        )}
-      </div>
+          })}
+        </ul>
+      )}
     </div>
   );
 }

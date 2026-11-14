@@ -39,12 +39,12 @@ export async function GET(req: Request) {
           `Time for ${client.first_name}'s retest`,
           emailShell(`
           <h1 style="margin:0 0 8px;font-size:22px">Hi ${esc(contact.name)},</h1>
-          <p style="color:#8796ab">It's been about three months since ${esc(client.first_name)}'s last movement scan
-          (score <b style="color:#e6edf6">${Math.round(Number(row.total_pct))}%</b>). The retest is due ${due}. Let's see the progress.</p>
+          <p style="color:#a29dc6">It's been about three months since ${esc(client.first_name)}'s last movement scan
+          (score <b style="color:#eeecf8">${Math.round(Number(row.total_pct))}%</b>). The retest is due ${due}. Let's see the progress.</p>
           ${
             BOOKING_URL
-              ? `<div style="text-align:center;margin:24px 0"><a href="${esc(BOOKING_URL)}" style="background:#2ee6d6;color:#032925;padding:14px 24px;border-radius:10px;text-decoration:none;font-weight:700">Book the retest</a></div>`
-              : `<p style="color:#8796ab">Reply to this email to set up a time.</p>`
+              ? `<div style="text-align:center;margin:24px 0"><a href="${esc(BOOKING_URL)}" style="background:#f4f2ff;color:#13102a;padding:14px 24px;border-radius:999px;text-decoration:none;font-weight:700">Book the retest</a></div>`
+              : `<p style="color:#a29dc6">Reply to this email to set up a time.</p>`
           }`),
         );
         sent.push("email");

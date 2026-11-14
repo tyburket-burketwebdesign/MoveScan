@@ -43,9 +43,9 @@ export async function sendSms(to: string, body: string) {
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export function emailShell(inner: string) {
-  return `<div style="background:#070b12;padding:32px 16px;font-family:Helvetica,Arial,sans-serif;color:#e6edf6">
-  <div style="max-width:520px;margin:0 auto;background:#0d141f;border:1px solid #1e2a3b;border-radius:16px;padding:28px">
-    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#2ee6d6;margin-bottom:16px">${esc(GYM_NAME)}</div>
+  return `<div style="background:#13102a;padding:32px 16px;font-family:Helvetica,Arial,sans-serif;color:#eeecf8">
+  <div style="max-width:520px;margin:0 auto;background:#1b1737;border:1px solid #322c5c;border-radius:16px;padding:28px">
+    <div style="font-size:15px;font-weight:800;color:#eeecf8;margin-bottom:20px">${esc(GYM_NAME)}</div>
     ${inner}
   </div></div>`;
 }

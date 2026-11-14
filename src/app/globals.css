@@ -1,20 +1,25 @@
 @import "tailwindcss";
 
+/* Thermal theme. Deep indigo base; the ironbow heat ramp is reserved for meaning
+   (compensations, low scores). Cool ice marks clear / good. */
 @theme {
-  --color-bg: #070b12;
-  --color-panel: #0d141f;
-  --color-panel-2: #121b29;
-  --color-line: #1e2a3b;
-  --color-ink: #e6edf6;
-  --color-dim: #8796ab;
-  --color-faint: #4d5b70;
-  --color-accent: #2ee6d6;
-  --color-accent-ink: #032925;
-  --color-good: #34d399;
-  --color-warn: #fbbf24;
-  --color-bad: #f43f5e;
-  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-bg: #13102a;
+  --color-surface: #1b1737;
+  --color-raised: #241f47;
+  --color-line: #322c5c;
+  --color-ink: #eeecf8;
+  --color-dim: #a29dc6;
+  --color-faint: #6b6597;
+  --color-ice: #8fd5ff;
+  --color-amber: #ffb04a;
+  --color-hot: #ff4d7e;
+  --color-paper: #f4f2ff;
+
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
 }
 
 html,
@@ -25,26 +30,28 @@ body {
 
 body {
   -webkit-tap-highlight-color: transparent;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 230, 214, 0.08), transparent),
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: auto, 32px 32px, 32px 32px;
-  background-attachment: fixed;
+  font-feature-settings: "tnum" 0;
 }
 
-.panel {
-  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
-  border: 1px solid var(--color-line);
-  border-radius: 1rem;
+/* Expanded, heavy Archivo carries headlines and every big number. */
+.display {
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+.wide {
+  font-stretch: 112%;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  font-stretch: 112%;
+  font-weight: 700;
 }
 
-.label {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-dim);
+.surface {
+  background: var(--color-surface);
+  border-radius: 1.25rem;
 }
 
 .btn {
@@ -53,51 +60,84 @@ body {
   justify-content: center;
   gap: 0.5rem;
   min-height: 3rem;
-  padding: 0 1.25rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: transform 0.08s, background 0.15s, opacity 0.15s;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  font-weight: 650;
+  font-stretch: 108%;
+  transition: transform 0.08s, background-color 0.15s, opacity 0.15s;
+  white-space: nowrap;
 }
 .btn:active {
   transform: scale(0.97);
 }
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
+  pointer-events: none;
 }
 .btn-primary {
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-  box-shadow: 0 0 24px rgba(46, 230, 214, 0.25);
+  background: var(--color-paper);
+  color: var(--color-bg);
 }
-.btn-ghost {
-  background: var(--color-panel-2);
-  border: 1px solid var(--color-line);
+.btn-primary:hover {
+  background: #fff;
+}
+.btn-quiet {
+  background: var(--color-raised);
   color: var(--color-ink);
+}
+.btn-quiet:hover {
+  background: #2e2858;
 }
 
 .field {
   width: 100%;
-  min-height: 3rem;
-  padding: 0 0.9rem;
-  border-radius: 0.65rem;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  border-radius: 0.85rem;
   background: var(--color-bg);
   border: 1px solid var(--color-line);
   color: var(--color-ink);
   font-size: 1rem;
 }
 textarea.field {
-  padding: 0.75rem 0.9rem;
-  min-height: 5rem;
+  padding: 0.85rem 1rem;
+  min-height: 5.5rem;
+  resize: vertical;
+}
+.field::placeholder {
+  color: var(--color-faint);
 }
 .field:focus {
   outline: none;
-  border-color: var(--color-accent);
+  border-color: var(--color-ice);
+  box-shadow: 0 0 0 3px rgb(143 213 255 / 0.15);
+}
+select.field {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a29dc6' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ice);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 @media print {
   body {
-    background: #fff !important;
-    color: #000;
+    background: var(--color-bg) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .no-print {
     display: none !important;
