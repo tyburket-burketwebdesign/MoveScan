@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #070b12;
+  --color-panel: #0d141f;
+  --color-panel-2: #121b29;
+  --color-line: #1e2a3b;
+  --color-ink: #e6edf6;
+  --color-dim: #8796ab;
+  --color-faint: #4d5b70;
+  --color-accent: #2ee6d6;
+  --color-accent-ink: #032925;
+  --color-good: #34d399;
+  --color-warn: #fbbf24;
+  --color-bad: #f43f5e;
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 230, 214, 0.08), transparent),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: auto, 32px 32px, 32px 32px;
+  background-attachment: fixed;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: transform 0.08s, background 0.15s, opacity 0.15s;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.4;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  box-shadow: 0 0 24px rgba(46, 230, 214, 0.25);
+}
+.btn-ghost {
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+}
+
+.field {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 0.9rem;
+  border-radius: 0.65rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+textarea.field {
+  padding: 0.75rem 0.9rem;
+  min-height: 5rem;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
