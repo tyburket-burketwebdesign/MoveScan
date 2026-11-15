@@ -1,60 +1,62 @@
-# MoveScan
+# Tungsten
 
 Live: https://move-scan-sand.vercel.app
 
-Movement efficiency assessments for trainers. Built for iPad first, works on phone and desktop.
-Install it on the iPad by opening the site in Safari, then Share → Add to Home Screen.
+The training platform for serious coaches: movement scans, programming, an athlete app and billing in
+one place. Built for iPad first; works on phone and desktop. The product name lives in
+`src/lib/brand.ts`. Change it there and the app, emails, icons and reports follow.
 
-- **Scan flow**: client intake (parent contact required for under 18s), six movement tests with
-  big R / L / whole-body toggles, live scoring, skip-test for injuries, notes, review.
-- **Results**: front and back body heatmap (tap a region to see what failed there), score rings for
-  total / right / left / synergy, movement bars, change since last scan.
-- **Reports**: email to the client or parent with a private results link. Print to PDF from the results page.
-- **Corrective programs**: every compensation maps to exercises in four phases (release, mobilize,
-  activate, integrate). Each scan builds a ranked program automatically. Gyms edit the map in Programs.
-- **Owner dashboard**: scans this month, average score and gain on retest, retest compliance, scan revenue,
-  and a gym-wide heat signature.
-- **Plans**: Studio $149, Performance $299, Elite $599 a month (Settings). Choosing a plan starts a
-  14-day trial; billing is not connected yet.
-- **Retests**: every scan sets a retest 90 days out. A daily job emails a reminder a week before,
-  and the home screen lists who is due or overdue.
+## What's in it
 
-## Scoring
+**Trainer hub**
+- **Today**: recurring revenue, sessions checked off this week, average movement score, and one list of
+  what needs attention (overdue invoices, athletes missing sessions, retests due).
+- **Athletes**: roster with program, membership, adherence and score. Each athlete has Overview,
+  Training and Billing tabs, plus a private link to their app.
+- **Movement scan**: six tests with R / L / whole-body toggles, live thermal body map, corrective
+  program, branded report. Scoring matches the original spreadsheet to the hundredth of a percent.
+- **Training**: program builder (weeks, days, sets, reps, load, rest, notes), starter templates,
+  an exercise library with demo video links (YouTube, Vimeo or .mp4), one-click "build from scan",
+  and the corrective map that drives scan programs.
+- **Billing**: membership plans, per-athlete subscriptions that invoice themselves each period,
+  one-off invoices, record cash / check payments, printable invoices, emailed invoices.
+- **Settings**: gym, athlete-app color, platform plan with a live bill estimate, payouts, team.
 
-Matches Ambrose's spreadsheet exactly (see `src/lib/scoring.test.ts`, which checks two real scans to
-the hundredth of a percent). Every compensation is a pass/fail slot, either per side or whole body.
-The battery has 60 slots: 24 right, 24 left, 12 whole body. Movement score = passed / possible for that
-movement. Total pools every slot, so it is not an average of the movement scores. Skipped tests drop
-out of the math instead of counting as fails.
+**Athlete app** (`/a/<private token>`)
+- Today's session, week strip, streak, movement score.
+- Workout player: tap off each set, watch the demo, finish with an effort rating and a note.
+- Scan: heat map, score, focus areas, progress. Account: membership, invoices, pay, receipts.
 
-The battery and its body-region map live in `src/lib/battery.ts`.
+## Pricing model (`src/lib/plans.ts`)
+
+- **Core**: $5.99 per active athlete a month for the first 25, $3.99 up to 100, $2.49 after. No license fee.
+- **Pro**: $99 a month on top (branding, unlimited coaches, hosted video, teams, automations, reporting).
+- **Payments**: 0.5% platform fee on athlete payments, on top of the card processor's 2.9% + 30¢.
+- Billing for the platform itself and card charging are **not connected yet**. Choosing a plan starts a
+  trial, and "pay" in the athlete app marks an invoice paid without moving money.
 
 ## Run locally
 
 ```bash
 npm install
 npm run dev     # http://localhost:3000
-npm test        # scoring acceptance tests
+npm test        # scoring, program, schedule, billing and pricing tests
 ```
 
-With no env vars set the app runs in **demo mode**: data lives in the browser with two sample
-clients. That is also how the first Vercel deploy behaves, so it can be clicked through right away.
+With no env vars set the app runs in **demo mode**: a sample gym lives in the browser, and the sidebar's
+"See the athlete app" opens an athlete with a session waiting. Reset it from the sidebar.
 
 ## Go live
 
-1. **Supabase**: create a project, open the SQL editor and run `supabase/migrations/0001_init.sql`, then `0002_settings.sql`.
-   Under Authentication, add Ambrose as a user (email + password), then run the onboarding snippet at
-   the bottom of the migration with his gym name and email.
-2. **Resend**: create an API key and verify the gym's sending domain.
-3. **Vercel**: import the GitHub repo and add the env vars from `.env.example`
-   (Supabase URL, anon key and service role key, `RESEND_API_KEY`, `REPORT_FROM_EMAIL`, `GYM_NAME`,
-   `BOOKING_URL`, and a random `CRON_SECRET`). Redeploy. The retest job in `vercel.json` runs daily at 13:00 UTC.
+1. **Supabase**: create a project and run the files in `supabase/migrations` in order (0001, 0002, 0003).
+   Under Authentication, add the trainer as a user, then run the onboarding snippet at the bottom of 0001.
+2. **Resend**: create an API key and verify the sending domain (reports, invoices, retest reminders).
+3. **Vercel**: add the env vars from `.env.example` and redeploy. The daily job in `vercel.json` creates
+   membership invoices and sends retest reminders.
 
-Adding a second gym later: insert a row in `gyms` and a `memberships` row for that trainer.
-Row level security keeps each gym's clients and scans separate.
+Live mode has not been run against a real database yet; test it end to end before putting real
+athletes on it. Athletes reach their app through a private link (no athlete logins yet).
 
 ## Stack
 
 Next.js 15 (App Router) · Tailwind 4 · Supabase (Postgres, auth, RLS) · Resend · Vercel
-
-Texting is not built in yet to keep costs down. Phone numbers are still collected at intake, so it can be added later.

@@ -215,3 +215,87 @@ select.field {
     print-color-adjust: exact;
   }
 }
+
+/* Sheets and the athlete app */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.sheet {
+  animation: sheet-up 0.32s var(--ease-out-expo) both;
+}
+.fade {
+  animation: fade 0.25s ease both;
+}
+.pop {
+  animation: pop 0.5s var(--ease-out-expo) both;
+}
+
+/* Borderless inputs that read as text until touched (program names, builder cells). */
+.ghost {
+  background: transparent;
+  border-radius: 8px;
+  outline: none;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.ghost:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+.ghost:focus {
+  background: rgb(0 0 0 / 0.25);
+  box-shadow: 0 0 0 1px #6b737c;
+}
+.ghost::placeholder {
+  color: var(--color-faint);
+}
+
+/* The invoice is a sheet of paper wherever it appears, so it prints as it looks. */
+.paper {
+  background: #fff;
+  color: #121417;
+  border-radius: 6px;
+  box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.6);
+}
+@media print {
+  .paper {
+    box-shadow: none;
+  }
+  .print-solo * {
+    visibility: hidden;
+  }
+  .print-solo .paper,
+  .print-solo .paper * {
+    visibility: visible;
+  }
+  .print-solo .paper {
+    position: absolute;
+    inset: 0;
+  }
+}

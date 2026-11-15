@@ -396,7 +396,7 @@ export function BodyMap({
 }
 
 // ---------- history ----------
-export function HistoryChart({ points }: { points: { date: string; pct: number }[] }) {
+export function HistoryChart({ points, compact = false }: { points: { date: string; pct: number }[]; compact?: boolean }) {
   if (points.length < 2)
     return (
       <div className="flex h-48 flex-col items-center justify-center gap-1 text-center">
@@ -404,8 +404,8 @@ export function HistoryChart({ points }: { points: { date: string; pct: number }
         <p className="text-sm text-dim">The progress line starts after the first retest.</p>
       </div>
     );
-  const W = 640;
-  const H = 210;
+  const W = compact ? 340 : 640;
+  const H = compact ? 190 : 210;
   const px = 30;
   const py = 28;
   const xs = (i: number) => px + (i * (W - px * 2)) / (points.length - 1);

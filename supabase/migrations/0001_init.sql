@@ -1,4 +1,4 @@
--- MoveScan schema. Every row belongs to a gym, and row level security only lets a signed-in user
+-- Platform schema. Every row belongs to a gym, and row level security only lets a signed-in user
 -- see rows for gyms they are a member of. Selling to a second gym = insert a gym + membership.
 
 create extension if not exists pgcrypto;

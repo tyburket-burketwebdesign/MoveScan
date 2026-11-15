@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import AppShell, { Loading } from "@/components/AppShell";
 import ResultsView from "@/components/ResultsView";
 import { scoreScan } from "@/lib/scoring";
 import { isLive, store, supabase } from "@/lib/store";
+import { programFromScan } from "@/lib/training";
 import { contactFor, fullName, type Client, type Scan } from "@/lib/types";
 import { useSettings } from "@/lib/useSettings";
 
 function ScanPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const justSaved = useSearchParams().get("new") === "1";
   const { settings } = useSettings();
   const [scan, setScan] = useState<Scan | null | undefined>(undefined);
@@ -108,16 +110,17 @@ function ScanPage() {
               {sending ? "Sending…" : scan.report_sent_at ? "Send report again" : `Send to ${contact.name}`}
             </button>
             <a className="btn btn-quiet" href={link} target="_blank" rel="noreferrer">
-              Athlete view
+              Report
             </a>
             <button
               className="btn btn-quiet"
               onClick={async () => {
-                await navigator.clipboard.writeText(link);
-                setStatus("Report link copied.");
+                const p = programFromScan(scan.fails, settings.mapping ?? undefined, client.first_name);
+                await store.put("program", p);
+                router.push(`/training/${p.id}?assign=${client.id}`);
               }}
             >
-              Copy link
+              Build program
             </button>
             <Link className="btn btn-quiet" href={`/clients/${client.id}`}>
               Profile

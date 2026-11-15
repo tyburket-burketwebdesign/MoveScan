@@ -1,4 +1,5 @@
 import { Mark } from "@/components/AppShell";
+import { BRAND } from "@/lib/brand";
 import { PrintButton } from "./PrintButton";
 
 export function ReportFrame({ gymName, children }: { gymName: string | null; children: React.ReactNode }) {
@@ -6,11 +7,11 @@ export function ReportFrame({ gymName, children }: { gymName: string | null; chi
     <div className="theme-light min-h-dvh">
       <header className="border-b border-hair bg-white">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-8">
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">{gymName ?? "MoveScan"}</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">{gymName ?? BRAND.name}</span>
           <span className="flex items-center gap-4">
             <PrintButton />
             <span className="hidden items-center gap-2 text-xs text-faint sm:flex">
-              <Mark size={18} /> Scanned with MoveScan
+              <Mark size={18} /> Scanned with {BRAND.name}
             </span>
           </span>
         </div>

@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { BRAND } from "./brand";
 
 // Server-only helpers. The service role key bypasses row level security, so it is never sent to the browser.
 export function admin() {
@@ -9,8 +10,8 @@ export function admin() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-export const GYM_NAME = process.env.GYM_NAME || "MoveScan";
-export const FROM_EMAIL = process.env.REPORT_FROM_EMAIL || "MoveScan <onboarding@resend.dev>";
+export const GYM_NAME = process.env.GYM_NAME || BRAND.name;
+export const FROM_EMAIL = process.env.REPORT_FROM_EMAIL || `${BRAND.name} <onboarding@resend.dev>`;
 export const BOOKING_URL = process.env.BOOKING_URL || null;
 
 export async function sendEmail(to: string, subject: string, html: string) {
@@ -26,10 +27,19 @@ export async function sendEmail(to: string, subject: string, html: string) {
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function emailShell(inner: string) {
+export function emailShell(inner: string, gym: string = GYM_NAME) {
   return `<div style="background:#121417;padding:32px 16px;font-family:Helvetica,Arial,sans-serif;color:#eceef0">
   <div style="max-width:520px;margin:0 auto;background:#191c20;border:1px solid #2a2f35;border-radius:16px;padding:28px">
-    <div style="font-size:15px;font-weight:800;color:#eceef0;margin-bottom:20px">${esc(GYM_NAME)}</div>
+    <div style="font-size:15px;font-weight:800;color:#eceef0;margin-bottom:20px">${esc(gym)}</div>
     ${inner}
   </div></div>`;
+}
+
+// In live mode only signed-in gym staff may trigger emails. In demo mode there is no database to check against.
+export async function requireStaff(req: Request) {
+  const db = admin();
+  if (!db) return true;
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  const { data } = token ? await db.auth.getUser(token) : { data: { user: null } };
+  return Boolean(data.user);
 }

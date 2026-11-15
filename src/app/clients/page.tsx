@@ -1,86 +1,135 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import AppShell, { Loading } from "@/components/AppShell";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import AppShell, { Loading, PageHeader } from "@/components/AppShell";
+import { Avatar, Field, Pill, Sheet } from "@/components/ui";
 import { scoreColor } from "@/components/viz";
-import { store } from "@/lib/store";
-import { ageFromDob, fullName, retestStatus, type Client, type Scan } from "@/lib/types";
+import { money } from "@/lib/billing";
+import { loadGym, store } from "@/lib/store";
+import { compliance, indexLogs } from "@/lib/training";
+import { ageFromDob, fullName, retestStatus, todayISO } from "@/lib/types";
+import { useLoad } from "@/lib/useSettings";
 
-function Clients() {
-  const [clients, setClients] = useState<Client[] | null>(null);
-  const [scans, setScans] = useState<Scan[]>([]);
+function Athletes() {
+  const router = useRouter();
+  const [gym] = useLoad(loadGym);
   const [q, setQ] = useState("");
-  useEffect(() => {
-    store.listClients().then(setClients);
-    store.listScans().then(setScans);
-  }, []);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", sport: "" });
+  const today = todayISO();
 
-  const latest = useMemo(() => {
-    const m: Record<string, Scan> = {};
-    for (const s of scans) m[s.client_id] ??= s;
-    return m;
-  }, [scans]);
-  const count = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const s of scans) m[s.client_id] = (m[s.client_id] ?? 0) + 1;
-    return m;
-  }, [scans]);
+  const rows = useMemo(() => {
+    if (!gym) return [];
+    const logMap = indexLogs(gym.logs);
+    return gym.clients.map((c) => {
+      const scan = gym.scans.find((s) => s.client_id === c.id);
+      const sub = gym.subs.find((s) => s.client_id === c.id && s.status === "active");
+      const mine = gym.sessions.filter((s) => s.assignment.client_id === c.id);
+      return { c, scan, sub, program: mine[0]?.assignment.program.name ?? null, adherence: compliance(mine, logMap, today).pct };
+    });
+  }, [gym, today]);
 
-  if (clients === null) return <Loading />;
-  const list = clients.filter((c) => fullName(c).toLowerCase().includes(q.toLowerCase()));
+  if (!gym) return <Loading />;
+  const list = rows.filter((r) => fullName(r.c).toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="space-y-8">
-      <header className="mb-2 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <h1 className="title text-[2.5rem] sm:text-[3.5rem]">Athletes</h1>
-          <p className="mt-3 text-lg text-dim">
-            {clients.length} {clients.length === 1 ? "athlete" : "athletes"} on file
-          </p>
-        </div>
-        <Link href="/scan/new" className="btn btn-primary">
+    <div>
+      <PageHeader title="Athletes" sub={`${gym.clients.length} active`}>
+        <button className="btn btn-primary" onClick={() => setAdding(true)}>
           Add an athlete
-        </Link>
-      </header>
+        </button>
+      </PageHeader>
 
-      <input className="field !min-h-12" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search athletes" />
+      <input className="field mb-6 !min-h-12" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search athletes" />
 
       {list.length === 0 ? (
-        <p className="surface p-6 text-dim">{q ? `No one matches “${q}”.` : "No athletes yet. Start a scan to add your first one."}</p>
+        <p className="surface p-8 text-dim">{q ? `No one matches “${q}”.` : "No athletes yet. Add your first one to get started."}</p>
       ) : (
-        <ul className="surface divide-y divide-[var(--color-hair)] overflow-hidden">
-          {list.map((c) => {
-            const s = latest[c.id];
-            const st = s ? retestStatus(s.retest_due) : null;
-            const age = ageFromDob(c.dob);
-            const meta = [age !== null && `${age}`, c.sport, s && `${count[c.id]} ${count[c.id] === 1 ? "scan" : "scans"}`].filter(Boolean).join(", ");
-            return (
-              <li key={c.id}>
-                <Link href={`/clients/${c.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] sm:px-8">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-raised text-sm font-semibold text-dim">
-                    {(c.first_name[0] ?? "") + (c.last_name.replace(/[^a-z]/gi, "")[0] ?? "")}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{fullName(c)}</span>
-                    <span className="block truncate text-sm text-dim">{meta || "No scans yet"}</span>
-                  </span>
-                  {st && st !== "ok" && (
-                    <span className={`hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline ${st === "overdue" ? "bg-hot/15 text-hot" : "bg-amber/15 text-amber"}`}>
-                      {st === "overdue" ? "Retest overdue" : "Retest due"}
+        <div className="surface overflow-hidden">
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_110px_64px] gap-4 border-b border-hair px-8 py-3 text-sm text-faint lg:grid">
+            <span>Athlete</span>
+            <span>Program</span>
+            <span>Membership</span>
+            <span>Adherence</span>
+            <span className="text-right">Score</span>
+          </div>
+          <ul className="divide-y divide-[var(--color-hair)]">
+            {list.map(({ c, scan, sub, program, adherence }) => {
+              const st = scan ? retestStatus(scan.retest_due) : null;
+              const age = ageFromDob(c.dob);
+              return (
+                <li key={c.id}>
+                  <Link href={`/clients/${c.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] sm:px-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_110px_64px]">
+                    <span className="flex min-w-0 items-center gap-4">
+                      <Avatar who={c} />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate font-semibold">{fullName(c)}</span>
+                          {st && st !== "ok" && <Pill tone={st === "overdue" ? "bad" : "warn"}>Retest</Pill>}
+                        </span>
+                        <span className="block truncate text-sm text-dim">{[age !== null && `${age}`, c.sport].filter(Boolean).join(", ") || "No details yet"}</span>
+                      </span>
                     </span>
-                  )}
-                  {s && (
-                    <span className="readout w-14 text-right text-3xl" style={{ color: scoreColor(Number(s.total_pct)) }}>
-                      {Math.round(Number(s.total_pct))}
+                    <span className="hidden truncate text-[15px] lg:block">{program ?? <span className="text-faint">No program</span>}</span>
+                    <span className="hidden truncate text-[15px] lg:block">{sub ? `${sub.name}, ${money(sub.price)}` : <span className="text-faint">No membership</span>}</span>
+                    <span className="hidden items-center gap-2.5 lg:flex">
+                      {adherence === null ? (
+                        <span className="text-faint">–</span>
+                      ) : (
+                        <>
+                          <span className="h-[3px] w-14 overflow-hidden rounded-full bg-line">
+                            <span className="block h-full rounded-full" style={{ width: `${adherence}%`, background: scoreColor(adherence) }} />
+                          </span>
+                          <span className="num text-sm">{Math.round(adherence)}%</span>
+                        </>
+                      )}
                     </span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="readout text-right text-3xl" style={{ color: scan ? scoreColor(Number(scan.total_pct)) : undefined }}>
+                      {scan ? Math.round(Number(scan.total_pct)) : <span className="text-faint">–</span>}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
+
+      <Sheet open={adding} onClose={() => setAdding(false)} title="Add an athlete">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="First name">
+            <input className="field" autoComplete="off" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+          </Field>
+          <Field label="Last name">
+            <input className="field" autoComplete="off" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+          </Field>
+          <Field label="Email" wide hint="For their app link, reports and invoices. A parent's email works for younger athletes.">
+            <input className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </Field>
+          <Field label="Sport or position" wide>
+            <input className="field" value={form.sport} onChange={(e) => setForm({ ...form, sport: e.target.value })} />
+          </Field>
+          <button
+            className="btn btn-primary sm:col-span-2"
+            disabled={!form.first_name.trim()}
+            onClick={async () => {
+              const c = await store.saveClient({
+                first_name: form.first_name.trim(),
+                last_name: form.last_name.trim(),
+                email: form.email.trim() || null,
+                sport: form.sport.trim() || null,
+                phone: null, dob: null, height_in: null, weight_lb: null, injuries: null, goals: null,
+                guardian_name: null, guardian_email: null, guardian_phone: null, consent: false,
+              });
+              router.push(`/clients/${c.id}`);
+            }}
+          >
+            Add athlete
+          </button>
+        </div>
+      </Sheet>
     </div>
   );
 }
@@ -88,7 +137,7 @@ function Clients() {
 export default function Page() {
   return (
     <AppShell>
-      <Clients />
+      <Athletes />
     </AppShell>
   );
 }

@@ -6,6 +6,7 @@ import { Logo } from "@/components/AppShell";
 import { HeatLegend, ThermalBody } from "@/components/viz";
 import { scoreScan } from "@/lib/scoring";
 import { RALEIGH_FAILS } from "@/lib/seed";
+import { BRAND } from "@/lib/brand";
 import { isLive, supabase } from "@/lib/store";
 
 const SAMPLE = scoreScan({ fails: RALEIGH_FAILS }).regions;
@@ -38,7 +39,7 @@ export default function Login() {
           </div>
           <HeatLegend />
         </div>
-        <p className="title max-w-md text-[2.25rem]">See exactly where every athlete compensates.</p>
+        <p className="title max-w-md text-[2.25rem]">{BRAND.tagline}</p>
       </div>
 
       <div className="flex items-center justify-center p-6">
@@ -67,7 +68,7 @@ export default function Login() {
             <h1 className="title pt-6 text-[2.5rem]">No sign-in needed yet</h1>
             <p className="text-dim">This copy runs in demo mode. Sign-in turns on once the database is connected.</p>
             <button className="btn btn-primary" onClick={() => router.push("/")}>
-              Open MoveScan
+              Open {BRAND.name}
             </button>
           </div>
         )}

@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/hanken-grotesk";
 import "./globals.css";
+import { BRAND } from "@/lib/brand";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://move-scan-sand.vercel.app";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE),
-  title: { default: "MoveScan", template: "%s · MoveScan" },
-  description: "Movement efficiency scans with a thermal body map, client reports and automatic retest reminders.",
+  metadataBase: new URL(BRAND.url),
+  title: { default: BRAND.name, template: `%s · ${BRAND.name}` },
+  description: BRAND.description,
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "MoveScan", statusBarStyle: "black-translucent" },
-  openGraph: { title: "MoveScan", description: "Movement efficiency scans for trainers", siteName: "MoveScan" },
+  appleWebApp: { capable: true, title: BRAND.name, statusBarStyle: "black-translucent" },
+  openGraph: { title: BRAND.name, description: BRAND.tagline, siteName: BRAND.name },
 };
 
 export const viewport: Viewport = {
