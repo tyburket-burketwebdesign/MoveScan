@@ -5,10 +5,10 @@ import { useState } from "react";
 import { Logo } from "@/components/AppShell";
 import { HeatLegend, ThermalBody } from "@/components/viz";
 import { scoreScan } from "@/lib/scoring";
-import { CARSON_FAILS } from "@/lib/seed";
+import { RALEIGH_FAILS } from "@/lib/seed";
 import { isLive, supabase } from "@/lib/store";
 
-const SAMPLE = scoreScan({ fails: CARSON_FAILS }).regions;
+const SAMPLE = scoreScan({ fails: RALEIGH_FAILS }).regions;
 
 export default function Login() {
   const router = useRouter();
@@ -29,16 +29,16 @@ export default function Login() {
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
-      <div className="hidden flex-col justify-between bg-surface p-12 lg:flex">
+      <div className="hidden flex-col justify-between border-r border-hair bg-[#0f1113] p-12 lg:flex">
         <Logo />
         <div className="flex flex-col items-center gap-6">
           <div className="flex gap-2">
-            <ThermalBody regions={SAMPLE} view="front" height={420} showSides={false} />
-            <ThermalBody regions={SAMPLE} view="back" height={420} showSides={false} />
+            <ThermalBody regions={SAMPLE} view="front" height={440} showSides={false} guides />
+            <ThermalBody regions={SAMPLE} view="back" height={440} showSides={false} guides />
           </div>
           <HeatLegend />
         </div>
-        <p className="display max-w-md text-3xl">See where every client compensates.</p>
+        <p className="title max-w-md text-[2.25rem]">See exactly where every athlete compensates.</p>
       </div>
 
       <div className="flex items-center justify-center p-6">
@@ -47,7 +47,7 @@ export default function Login() {
             <div className="lg:hidden">
               <Logo />
             </div>
-            <h1 className="display pt-4 text-4xl">Sign in</h1>
+            <h1 className="title pt-6 text-[2.5rem]">Sign in</h1>
             <label className="flex flex-col gap-2">
               <span className="text-sm text-dim">Email</span>
               <input className="field" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -64,7 +64,7 @@ export default function Login() {
         ) : (
           <div className="max-w-sm space-y-5">
             <Logo />
-            <h1 className="display pt-4 text-4xl">No sign-in needed yet</h1>
+            <h1 className="title pt-6 text-[2.5rem]">No sign-in needed yet</h1>
             <p className="text-dim">This copy runs in demo mode. Sign-in turns on once the database is connected.</p>
             <button className="btn btn-primary" onClick={() => router.push("/")}>
               Open MoveScan

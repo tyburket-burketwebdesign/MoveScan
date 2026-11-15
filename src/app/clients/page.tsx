@@ -32,24 +32,24 @@ function Clients() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-6">
+      <header className="mb-2 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h1 className="display text-4xl sm:text-6xl">Clients</h1>
+          <h1 className="title text-[2.5rem] sm:text-[3.5rem]">Athletes</h1>
           <p className="mt-3 text-lg text-dim">
-            {clients.length} {clients.length === 1 ? "person" : "people"} scanned
+            {clients.length} {clients.length === 1 ? "athlete" : "athletes"} on file
           </p>
         </div>
         <Link href="/scan/new" className="btn btn-primary">
-          Add a client
+          Add an athlete
         </Link>
       </header>
 
-      <input className="field !min-h-14 !rounded-full !px-6 text-lg" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" />
+      <input className="field !min-h-12" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search athletes" />
 
       {list.length === 0 ? (
-        <p className="surface p-6 text-dim">{q ? `No one matches “${q}”.` : "No clients yet. Start a scan to add your first one."}</p>
+        <p className="surface p-6 text-dim">{q ? `No one matches “${q}”.` : "No athletes yet. Start a scan to add your first one."}</p>
       ) : (
-        <ul className="surface divide-y divide-line overflow-hidden">
+        <ul className="surface divide-y divide-[var(--color-hair)] overflow-hidden">
           {list.map((c) => {
             const s = latest[c.id];
             const st = s ? retestStatus(s.retest_due) : null;
@@ -57,8 +57,8 @@ function Clients() {
             const meta = [age !== null && `${age}`, c.sport, s && `${count[c.id]} ${count[c.id] === 1 ? "scan" : "scans"}`].filter(Boolean).join(", ");
             return (
               <li key={c.id}>
-                <Link href={`/clients/${c.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-raised sm:px-6">
-                  <span className="wide grid h-11 w-11 shrink-0 place-items-center rounded-full bg-raised text-sm font-bold text-dim">
+                <Link href={`/clients/${c.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] sm:px-8">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-raised text-sm font-semibold text-dim">
                     {(c.first_name[0] ?? "") + (c.last_name.replace(/[^a-z]/gi, "")[0] ?? "")}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -71,8 +71,8 @@ function Clients() {
                     </span>
                   )}
                   {s && (
-                    <span className="num w-14 text-right text-xl" style={{ color: scoreColor(Number(s.total_pct)) }}>
-                      {Math.round(Number(s.total_pct))}%
+                    <span className="readout w-14 text-right text-3xl" style={{ color: scoreColor(Number(s.total_pct)) }}>
+                      {Math.round(Number(s.total_pct))}
                     </span>
                   )}
                 </Link>

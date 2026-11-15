@@ -68,9 +68,9 @@ function NewScan() {
     });
 
   const intakeError = !form.first_name.trim()
-    ? "Add the client's first name."
-    : minor && !form.guardian_email && !form.guardian_phone
-      ? "This client is under 18. Add a parent or guardian email or phone."
+    ? "Add the athlete's first name."
+    : minor && !form.guardian_email
+      ? "This athlete is under 18. Add a parent or guardian email."
       : !form.consent
         ? "Check the consent box to continue."
         : null;
@@ -111,7 +111,7 @@ function NewScan() {
             Cancel
           </Link>
           <span className="text-dim">
-            {step === 0 ? "Client details" : step === last ? "Review" : `Test ${step} of ${battery.length}`}
+            {step === 0 ? "Athlete details" : step === last ? "Review" : `Test ${step} of ${battery.length}`}
           </span>
         </div>
         <div className="flex gap-1.5">
@@ -121,7 +121,7 @@ function NewScan() {
               aria-label={label}
               disabled={i > 0 && !!intakeError}
               onClick={() => setStep(i)}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${i === step ? "bg-paper" : i < step ? "bg-ice/60" : "bg-line"}`}
+              className={`h-[3px] flex-1 rounded-full transition-colors ${i === step ? "bg-paper" : i < step ? "bg-dim" : "bg-line"}`}
             />
           ))}
         </div>
@@ -130,12 +130,12 @@ function NewScan() {
       {step === 0 && (
         <div className="mx-auto max-w-3xl space-y-8">
           <div>
-            <h1 className="display text-4xl sm:text-5xl">{clientId ? `Retest ${form.first_name}` : "Who are we scanning?"}</h1>
-            <p className="mt-3 text-dim">{clientId ? "Check their details are still right, then start." : "Pick someone to retest, or add a new client."}</p>
+            <h1 className="title text-[2.25rem] sm:text-[3rem]">{clientId ? `Retest ${form.first_name}` : "Who are we scanning?"}</h1>
+            <p className="mt-3 text-dim">{clientId ? "Check their details are still right, then start." : "Pick an athlete to retest, or add someone new."}</p>
           </div>
 
-          <select className="field !min-h-14 text-lg" value={clientId ?? ""} onChange={(e) => setClientId(e.target.value || null)} aria-label="Client">
-            <option value="">New client</option>
+          <select className="field !min-h-14 text-[17px]" value={clientId ?? ""} onChange={(e) => setClientId(e.target.value || null)} aria-label="Athlete">
+            <option value="">New athlete</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {fullName(c)}
@@ -169,7 +169,7 @@ function NewScan() {
           </Section>
 
           {minor ? (
-            <Section title="Parent or guardian" note="This client is under 18, so their results and reminders go to a parent.">
+            <Section title="Parent or guardian" note="This athlete is under 18, so results and reminders go to a parent.">
               <F label="Name" wide><input className="field" value={form.guardian_name ?? ""} onChange={(e) => set("guardian_name", str(e.target.value))} /></F>
               <F label="Email"><input className="field" type="email" inputMode="email" value={form.guardian_email ?? ""} onChange={(e) => set("guardian_email", str(e.target.value))} /></F>
               <F label="Phone"><input className="field" type="tel" value={form.guardian_phone ?? ""} onChange={(e) => set("guardian_phone", str(e.target.value))} /></F>
@@ -186,21 +186,21 @@ function NewScan() {
             <F label="Goals" wide><textarea className="field" placeholder="What they want out of training" value={form.goals ?? ""} onChange={(e) => set("goals", str(e.target.value))} /></F>
           </Section>
 
-          <label className="flex cursor-pointer items-start gap-4 rounded-2xl bg-surface p-5">
+          <label className="flex cursor-pointer items-start gap-4 surface p-5">
             <input type="checkbox" className="mt-0.5 h-6 w-6 shrink-0 accent-[var(--color-ice)]" checked={form.consent} onChange={(e) => set("consent", e.target.checked)} />
             <span className="text-dim">
-              {minor ? "The parent or guardian agrees" : "The client agrees"} to have their assessment results stored, and to receive results and retest reminders by email or text.
+              {minor ? "The parent or guardian agrees" : "The athlete agrees"} to have their assessment results stored, and to receive results and retest reminders by email.
             </span>
           </label>
         </div>
       )}
 
       {movement && movementScore && (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_310px]">
           <div>
             <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
-                <h1 className="display text-4xl sm:text-5xl">{movement.label}</h1>
+                <h1 className="title text-[2.25rem] sm:text-[3rem]">{movement.label}</h1>
                 <p className="mt-3 text-dim">{movement.cue}</p>
               </div>
               <button
@@ -222,7 +222,7 @@ function NewScan() {
               <p className="surface p-6 text-dim">Skipped. This test won&apos;t count toward the score.</p>
             ) : (
               <div className="surface overflow-hidden">
-                <div className="flex items-center justify-between border-b border-line px-5 py-3 text-sm text-dim">
+                <div className="flex items-center justify-between border-b border-hair px-5 py-3.5 text-sm text-dim sm:px-6">
                   <span>Tap what you see</span>
                   <span className="flex w-[180px] justify-around sm:w-[196px]">
                     <span>Right</span>
@@ -230,8 +230,8 @@ function NewScan() {
                   </span>
                 </div>
                 {movement.compensations.map((comp) => (
-                  <div key={comp.key} className="flex items-center justify-between gap-3 border-b border-line/60 px-5 py-2.5 last:border-0">
-                    <span className="text-lg">{comp.label}</span>
+                  <div key={comp.key} className="flex items-center justify-between gap-3 border-b border-hair px-5 py-2.5 sm:px-6 last:border-0">
+                    <span className="text-[17px]">{comp.label}</span>
                     {comp.type === "side" ? (
                       <div className="flex gap-2">
                         {(["R", "L"] as Side[]).map((side) => (
@@ -258,7 +258,7 @@ function NewScan() {
           <aside className="surface hidden h-fit flex-col items-center gap-4 p-6 lg:sticky lg:top-10 lg:flex">
             <div className="flex w-full items-baseline justify-between">
               <span className="text-sm text-dim">{movement.label}</span>
-              <span className="num text-2xl" style={{ color: movementScore.skipped ? undefined : scoreColor(movementScore.score.pct) }}>
+              <span className="readout text-4xl" style={{ color: movementScore.skipped ? undefined : scoreColor(movementScore.score.pct) }}>
                 {movementScore.skipped ? "–" : `${Math.round(movementScore.score.pct ?? 0)}%`}
               </span>
             </div>
@@ -268,7 +268,7 @@ function NewScan() {
             </div>
             <div className="flex w-full items-baseline justify-between border-t border-line pt-4">
               <span className="text-sm text-dim">Total so far</span>
-              <span className="num text-2xl" style={{ color: scoreColor(score.total.pct) }}>
+              <span className="readout text-4xl" style={{ color: scoreColor(score.total.pct) }}>
                 {Math.round(score.total.pct ?? 0)}%
               </span>
             </div>
@@ -279,13 +279,13 @@ function NewScan() {
       {step === last && (
         <div className="mx-auto max-w-3xl space-y-8">
           <div>
-            <h1 className="display text-4xl sm:text-5xl">Review {form.first_name}&apos;s scan</h1>
+            <h1 className="title text-[2.25rem] sm:text-[3rem]">Review {form.first_name}&apos;s scan</h1>
             <p className="mt-3 text-dim">Tap a test to change it. Saving sets the retest for {RETEST_DAYS} days from today.</p>
           </div>
           <div className="surface flex flex-col items-center gap-6 p-8 sm:flex-row sm:justify-between">
             <div>
               <p className="text-dim">Total score</p>
-              <p className="display text-7xl" style={{ color: scoreColor(score.total.pct) }}>
+              <p className="readout text-8xl" style={{ color: scoreColor(score.total.pct) }}>
                 {score.total.pct?.toFixed(1)}
                 <span className="text-[0.4em] text-dim">%</span>
               </p>
@@ -299,9 +299,9 @@ function NewScan() {
               ))}
             </dl>
           </div>
-          <div className="surface divide-y divide-line overflow-hidden">
+          <div className="surface divide-y divide-[var(--color-hair)] overflow-hidden">
             {score.movements.map((m, i) => (
-              <button key={m.key} onClick={() => setStep(i + 1)} className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-raised">
+              <button key={m.key} onClick={() => setStep(i + 1)} className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-white/[0.03]">
                 <span className="text-lg">{m.label}</span>
                 <span className="flex items-center gap-4">
                   {!m.skipped && (
@@ -321,10 +321,10 @@ function NewScan() {
       )}
 
       <div
-        className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-line/60 bg-bg/95 backdrop-blur md:left-60"
+        className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-hair bg-bg/90 backdrop-blur-xl md:left-[248px]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-4 py-3 sm:px-6 md:px-10">
+        <div className="mx-auto flex max-w-[1200px] items-center gap-3 px-4 py-3 sm:px-8 md:px-12">
           <button className="btn btn-quiet" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
             Back
           </button>
@@ -361,10 +361,10 @@ function Toggle({ on, onClick, label, short, wide }: { on: boolean; onClick: () 
       onClick={onClick}
       aria-pressed={on}
       aria-label={`${label}${on ? ", found" : ""}`}
-      className={`h-14 rounded-2xl text-base font-bold transition-[background-color,color,transform] duration-100 active:scale-95 ${wide ? "w-[180px] sm:w-[196px]" : "w-[86px] sm:w-[94px]"} ${
-        on ? "text-bg" : "bg-raised text-faint hover:text-dim"
+      className={`h-[52px] rounded-[12px] text-[15px] font-semibold transition-[background-color,color,transform] duration-100 active:scale-95 ${wide ? "w-[180px] sm:w-[196px]" : "w-[86px] sm:w-[94px]"} ${
+        on ? "text-bg" : "bg-white/[0.04] text-faint shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] hover:text-dim"
       }`}
-      style={on ? { background: heat(0.72) } : undefined}
+      style={on ? { background: heat(0.72), boxShadow: `0 6px 20px -6px ${heat(0.72, 0.6)}` } : undefined}
     >
       {short}
     </button>
@@ -375,7 +375,7 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   return (
     <section className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <h2 className="wide text-xl font-bold">{title}</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
         {note && <p className="mt-1 text-sm text-dim">{note}</p>}
       </div>
       {children}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource-variable/hanken-grotesk";
 import "./globals.css";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://move-scan-sand.vercel.app";
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#13102a",
+  themeColor: "#121417",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

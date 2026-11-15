@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { admin, BOOKING_URL, emailShell, esc, GYM_NAME, sendEmail, sendSms, smsEnabled } from "@/lib/server";
+import { admin, BOOKING_URL, emailShell, esc, sendEmail } from "@/lib/server";
 import { addDays, contactFor, todayISO, type Client, type Scan } from "@/lib/types";
 
 // Runs every morning (see vercel.json). Finds each client whose LATEST scan has a retest due within
-// 7 days (or already past due) and who hasn't been reminded yet, then emails / texts them once.
+// 7 days (or already past due) and who hasn't been reminded yet, then emails them once.
 export async function GET(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -39,22 +39,15 @@ export async function GET(req: Request) {
           `Time for ${client.first_name}'s retest`,
           emailShell(`
           <h1 style="margin:0 0 8px;font-size:22px">Hi ${esc(contact.name)},</h1>
-          <p style="color:#a29dc6">It's been about three months since ${esc(client.first_name)}'s last movement scan
-          (score <b style="color:#eeecf8">${Math.round(Number(row.total_pct))}%</b>). The retest is due ${due}. Let's see the progress.</p>
+          <p style="color:#9aa1a9">It's been about three months since ${esc(client.first_name)}'s last movement scan
+          (score <b style="color:#eceef0">${Math.round(Number(row.total_pct))}%</b>). The retest is due ${due}. Let's see the progress.</p>
           ${
             BOOKING_URL
-              ? `<div style="text-align:center;margin:24px 0"><a href="${esc(BOOKING_URL)}" style="background:#f4f2ff;color:#13102a;padding:14px 24px;border-radius:999px;text-decoration:none;font-weight:700">Book the retest</a></div>`
-              : `<p style="color:#a29dc6">Reply to this email to set up a time.</p>`
+              ? `<div style="text-align:center;margin:24px 0"><a href="${esc(BOOKING_URL)}" style="background:#f5f6f7;color:#121417;padding:14px 24px;border-radius:12px;text-decoration:none;font-weight:700">Book the retest</a></div>`
+              : `<p style="color:#9aa1a9">Reply to this email to set up a time.</p>`
           }`),
         );
         sent.push("email");
-      }
-      if (contact.phone && smsEnabled()) {
-        await sendSms(
-          contact.phone,
-          `${GYM_NAME}: ${client.first_name}'s movement retest is due ${due}.${BOOKING_URL ? ` Book: ${BOOKING_URL}` : " Reply to book a time."}`,
-        );
-        sent.push("text");
       }
       if (sent.length) await db.from("scans").update({ reminder_sent_at: new Date().toISOString() }).eq("id", row.id);
       results.push({ scan: row.id, sent });

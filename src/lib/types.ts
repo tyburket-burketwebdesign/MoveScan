@@ -54,7 +54,7 @@ export const isMinor = (c: Pick<Client, "dob">) => {
 
 // Where reports and reminders go: the parent for minors, otherwise the client.
 export const contactFor = (c: Client) =>
-  isMinor(c) && (c.guardian_email || c.guardian_phone)
+  isMinor(c) && c.guardian_email
     ? { name: c.guardian_name || fullName(c), email: c.guardian_email, phone: c.guardian_phone }
     : { name: c.first_name, email: c.email, phone: c.phone };
 
@@ -72,3 +72,29 @@ export function retestStatus(due: string): "overdue" | "due_soon" | "ok" {
   if (due <= addDays(today, 7)) return "due_soon";
   return "ok";
 }
+
+export interface TeamMember {
+  name: string;
+  email: string;
+  role: "Owner" | "Trainer";
+}
+
+export interface GymSettings {
+  gymName: string;
+  ownerName: string;
+  assessmentPrice: number; // what the gym charges an athlete per scan
+  plan: "studio" | "performance" | "elite" | null;
+  planStartedAt: string | null;
+  mapping: Record<string, string[]> | null; // null = starter library
+  team: TeamMember[];
+}
+
+export const DEFAULT_SETTINGS: GymSettings = {
+  gymName: "Your Gym",
+  ownerName: "",
+  assessmentPrice: 75,
+  plan: null,
+  planStartedAt: null,
+  mapping: null,
+  team: [],
+};
